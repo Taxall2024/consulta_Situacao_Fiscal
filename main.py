@@ -1,16 +1,22 @@
+import pandas as pd
+import requests
+import os
+import time
+
 from consulta_api import consultar_api
 from data_transform import transformar_resultado_api_em_dataframe
 from local_utils import criar_pasta_local  # Importação modularizada
-import pandas as pd
 from datetime import datetime
-import requests
-import os
+from decouple import config  # Para carregar variáveis do arquivo .env
 
+start = time.time()
+
+
+senha_certificado = config("SENHA_CERTIFICADO")
+chave_criptografia = config("CHAVE_CRIPTOGRAFIA")
+token = config("TOKEN")
 
 caminho_certificado = r"C:\Users\hailleen.gonzalez\Documents\Projeto Situação Fiscal\1_data\input\TAX ALL SSA.pfx"
-senha_certificado = "12345678"
-chave_criptografia = "Ck3o4eBECO5AaHHDqbq8McNRuqqlTwx4kLUs5XrO"
-token = "DmeJzyd54HWKjFKIYhqU7DVd6QCNaBfHzMCYIVDy"
 caminho_csv = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_consultas.csv"
 pasta_pdfs_local = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND"
 
@@ -86,3 +92,7 @@ for resultado in resultados_positivos:
         print(f"PDF salvo com sucesso: {nome_pdf}")
     except Exception as e:
         print(f"Erro ao salvar PDF para {razao_social}: {str(e)}")
+
+end = time.time()
+tempo = end - start
+print(f"Tempo de execução: {tempo:.2f} segundos")
