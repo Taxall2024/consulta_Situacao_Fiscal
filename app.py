@@ -3,7 +3,7 @@ import pandas as pd
 import ast  # Para converter strings de listas/dicionários para objetos Python
 
 # Configuração do caminho do CSV
-caminho_csv = fr"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_consultas.csv"
+caminho_csv = fr"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_consultas_9.csv"
 # Função para transformar o JSON do campo "data" em um DataFrame
 def transformar_json_em_tabela(data_json):
     registros = []

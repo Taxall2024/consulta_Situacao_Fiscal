@@ -16,7 +16,7 @@ senha_certificado = config("SENHA_CERTIFICADO")
 chave_criptografia = config("CHAVE_CRIPTOGRAFIA")
 token = config("TOKEN")
 
-caminho_certificado = r"C:\Users\hailleen.gonzalez\Documents\Projeto Situação Fiscal\1_data\input\TAX ALL SSA.pfx"
+caminho_certificado = r"C:\Users\hailleen.gonzalez\Documents\Projeto Situação Fiscal\1_data\input\TAX ALL BSB - SENHA 12345678.pfx"
 caminho_csv = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_consultas.csv"
 pasta_pdfs_local = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND"
 
@@ -28,16 +28,17 @@ arquivo_excel = r"G:\Drives compartilhados\Operacional\33 - TRANSFORMAÇÃO ORGA
 try:
     df_cnpjs = pd.read_excel(arquivo_excel, sheet_name=0)
     print("Dados carregados com sucesso!")
-    print(df_cnpjs.head())
+    #print(df_cnpjs.head())
 except Exception as e:
     print(f"Erro ao carregar dados do Google Sheets: {str(e)}")
     exit()
 
 # Etapa 2: Contar CNPJs únicos
-df_cnpjs = df_cnpjs[df_cnpjs['CND'] == 'SIM'][39:40]
+df_cnpjs = df_cnpjs[(df_cnpjs['CND'] == 'SIM') & (df_cnpjs['Certificado'] == 'Tax All')].reset_index(drop=True)[55:56]
 cnpjs_unicos = df_cnpjs["CNPJ"].nunique()
 
 print(f"Número de CNPJs únicos: {cnpjs_unicos}")
+print(df_cnpjs)
 
 # Etapa 3: Iterar pelos CNPJs e realizar consultas
 resultados = []
@@ -80,7 +81,7 @@ for resultado in resultados_positivos:
     # Baixar e salvar o primeiro PDF localmente
     pdf_url = site_receipts[0]  # Considerando que o primeiro link seja o correto
     nome_pdf = f"{razao_social.replace(' ', '_')}_situacao-fiscal_{data_consulta}.pdf"
-    caminho_cliente_pasta = criar_pasta_local(pasta_pdfs_local, razao_social.replace(' ', '_'))
+    caminho_cliente_pasta = criar_pasta_local(pasta_pdfs_local, razao_social)
     caminho_pdf_local = os.path.join(caminho_cliente_pasta, nome_pdf)
 
     try:
