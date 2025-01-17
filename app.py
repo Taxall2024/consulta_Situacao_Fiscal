@@ -22,6 +22,12 @@ def transformar_json_em_tabela(data_json):
             link_certidao = registro.get('site_receipt', 'N/A')
             data_consulta = registro.get('data_hora_consulta', 'N/A')
 
+            try:
+                data_consulta = pd.to_datetime(data_consulta, errors='coerce').strftime("%Y-%m-%d")
+            except Exception:
+                data_consulta = None
+
+
             # Adicionar `data_consulta` aos JSONs para pendências
             for item in pendencias_rf:
                 item['data_consulta'] = data_consulta
@@ -57,13 +63,16 @@ def criar_tabela_pendencias(data, coluna_nome):
     df = pd.DataFrame(data)
     if 'tipo' in df.columns and 'data_consulta' in df.columns:
         df = df[['tipo', 'data_consulta']]
+    
+
+    sub_tabelas = {}
 
     # Verificar se há débitos em algum registro
     debitos_registros = [
         {"debitos": item.get('debitos', []), "tipo": item.get('tipo', 'N/A')} 
         for item in data if 'debitos' in item and item['debitos']
     ]
-    sub_tabelas = {}
+    
     if debitos_registros:
         debitos = pd.json_normalize(
             debitos_registros, 
@@ -74,6 +83,17 @@ def criar_tabela_pendencias(data, coluna_nome):
 
         debitos = debitos.loc[:, ~debitos.columns.str.startswith(('normalizado_', 'normalziado_'))]
         sub_tabelas['debitos'] = debitos
+    
+    parcelamento_registros = [
+        item for item in data if 'parcelamento' in item and item['parcelamento']
+    ]
+    if parcelamento_registros:
+        parcelamento_df = pd.DataFrame(parcelamento_registros)
+        # Remover a coluna data_consulta apenas para a subtabela parcelamento
+        if 'data_consulta' in parcelamento_df.columns:
+            parcelamento_df = parcelamento_df.drop(columns=['data_consulta'])
+        #parcelamento_df = parcelamento_df.loc[:, ~parcelamento_df.columns.str.startswith(('normalizado_', 'normalziado_'))]
+        sub_tabelas['parcelamento'] = parcelamento_df
 
     return df, sub_tabelas
 
@@ -92,7 +112,7 @@ try:
         )
 
     # Converter `data_consulta` para o formato de data e formatar como yyyy-mm-dd
-    df['data_consulta'] = pd.to_datetime(df['data_consulta'], errors='coerce').dt.date
+    #df['data_consulta'] = pd.to_datetime(df['data_consulta'], errors='coerce').strftime("%Y-%m-%d")
 except Exception as e:
     st.error(f"Erro ao carregar o CSV: {e}")
     st.stop()
@@ -131,16 +151,23 @@ if not dados_filtrados.empty:
                 st.write("Pendências da Procuradoria Geral:")
                 st.dataframe(pendencias_pgfn)
                 if sub_tabelas_pgfn:
-                    st.write(f"Detalhes {', '.join(sub_tabelas_pgfn['debitos']['tipo'].unique())}:")
-                    st.dataframe(sub_tabelas_pgfn['debitos'])
+                    if 'debitos' in sub_tabelas_pgfn:
+                        st.write(f"Detalhes {', '.join(sub_tabelas_pgfn['debitos']['tipo'].unique())}:")
+                        st.dataframe(sub_tabelas_pgfn['debitos'])
+                    if 'parcelamento' in sub_tabelas_pgfn:
+                        st.write("Detalhe dos Parcelamentos:")
+                        st.dataframe(sub_tabelas_pgfn['parcelamento'])
 
         with tab3:
             if pendencias_rf is not None:
                 st.write("Pendências da Receita Federal:")
                 st.dataframe(pendencias_rf)
                 if sub_tabelas_rf:
-                    tipos_com_debitos = ", ".join(sub_tabelas_rf['debitos']['tipo'].unique())
-                    st.write(f"Detalhes {tipos_com_debitos}:")
-                    st.dataframe(sub_tabelas_rf['debitos'])
+                    if 'debitos' in sub_tabelas_rf:
+                        st.write(f"Detalhes {', '.join(sub_tabelas_rf['debitos']['tipo'].unique())}:")
+                        st.dataframe(sub_tabelas_rf['debitos'])
+                    if 'parcelamento' in sub_tabelas_rf:
+                        st.write("Detalhe dos Parcelamentos:")
+                        st.dataframe(sub_tabelas_rf['parcelamento'])
 else:
     st.warning("Nenhum dado encontrado para a razão social selecionada.")

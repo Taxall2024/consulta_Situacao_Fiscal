@@ -11,13 +11,13 @@ from decouple import config  # Para carregar variáveis do arquivo .env
 
 start = time.time()
 
-
 senha_certificado = config("SENHA_CERTIFICADO")
 chave_criptografia = config("CHAVE_CRIPTOGRAFIA")
 token = config("TOKEN")
 
 caminho_certificado = r"C:\Users\hailleen.gonzalez\Documents\Projeto Situação Fiscal\1_data\input\TAX ALL BSB - SENHA 12345678.pfx"
-caminho_csv = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_consultas.csv"
+caminho_csv_200 = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_consultas.csv"
+caminho_csv_600_799 = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND\planilhas_controle\resultados_nao_consultados.csv"
 pasta_pdfs_local = r"G:\Drives compartilhados\Operacional\12 - CONTROLES\SITUAÇÃO FISCAL E CND"
 
 # Criar a pasta local de PDFs, se não existir
@@ -28,19 +28,18 @@ arquivo_excel = r"G:\Drives compartilhados\Operacional\33 - TRANSFORMAÇÃO ORGA
 try:
     df_cnpjs = pd.read_excel(arquivo_excel, sheet_name=0)
     print("Dados carregados com sucesso!")
-    #print(df_cnpjs.head())
 except Exception as e:
-    print(f"Erro ao carregar dados do Google Sheets: {str(e)}")
+    print(f"Erro ao carregar dados da planilha: {str(e)}")
     exit()
 
-# Etapa 2: Contar CNPJs únicos
-df_cnpjs = df_cnpjs[(df_cnpjs['CND'] == 'SIM') & (df_cnpjs['Certificado'] == 'Tax All')].reset_index(drop=True)[55:56]
+# Filtrar os CNPJs para consulta
+df_cnpjs = df_cnpjs[(df_cnpjs['CND'] == 'SIM') & (df_cnpjs['Certificado'] == 'Tax All')].reset_index(drop=True)[62:]
 cnpjs_unicos = df_cnpjs["CNPJ"].nunique()
 
 print(f"Número de CNPJs únicos: {cnpjs_unicos}")
 print(df_cnpjs)
 
-# Etapa 3: Iterar pelos CNPJs e realizar consultas
+# Iterar pelos CNPJs e realizar consultas
 resultados = []
 
 for _, cliente in df_cnpjs.iterrows():
@@ -50,24 +49,32 @@ for _, cliente in df_cnpjs.iterrows():
     print(f"Consultando CNPJ: {cnpj} - {razao_social}")
     resultado = consultar_api(cnpj, caminho_certificado, senha_certificado, chave_criptografia, token)
 
-    # Adicionar razão social aos resultados
+    # Adicionar razão social e CNPJ aos resultados
     resultado["CNPJ"] = cnpj
     resultado["RAZÃO SOCIAL"] = razao_social
 
     resultados.append(resultado)
 
-# Etapa 4: Transformar os dados e salvar como CSV
+# Separar os resultados com base no código HTTP
+resultados_200 = [res for res in resultados if res.get("code") == 200]
+resultados_600_799 = [res for res in resultados if 600 <= res.get("code", 0) <= 799]
+
+# Salvar os resultados em arquivos separados
 try:
-    df_transformado = transformar_resultado_api_em_dataframe(resultados)
-    df_transformado.to_csv(caminho_csv, index=False, sep=';')
-    print("Dados transformados e salvos no CSV com separador ';'.")
+    if resultados_200:
+        df_200 = transformar_resultado_api_em_dataframe(resultados_200)
+        df_200.to_csv(caminho_csv_200, index=False, sep=';')
+        print(f"Resultados com code=200 salvos em: {caminho_csv_200}")
+
+    if resultados_600_799:
+        df_600_799 = transformar_resultado_api_em_dataframe(resultados_600_799)
+        df_600_799.to_csv(caminho_csv_600_799, index=False, sep=';')
+        print(f"Resultados com code entre 600-799 salvos em: {caminho_csv_600_799}")
 except Exception as e:
-    print(f"Erro ao transformar ou salvar os dados: {str(e)}")
+    print(f"Erro ao salvar os dados em arquivos separados: {str(e)}")
 
-# Etapa 5: Filtrar retornos positivos e processar PDFs
-resultados_positivos = [res for res in resultados if res.get("code") == 200]
-
-for resultado in resultados_positivos:
+# Processar PDFs apenas para resultados positivos (code=200)
+for resultado in resultados_200:
     cnpj = resultado["CNPJ"]
     razao_social = resultado["RAZÃO SOCIAL"]
     data_consulta = datetime.now().strftime("%Y-%m-%d")
